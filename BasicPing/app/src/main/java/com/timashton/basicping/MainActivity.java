@@ -16,6 +16,8 @@ import java.io.LineNumberReader;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 
 public class MainActivity extends Activity implements View.OnClickListener {
@@ -31,19 +33,22 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
         Button pingButton = (Button) findViewById(R.id.button_start_ping);
         pingButton.setOnClickListener(this);
+
+        EditText host = (EditText) findViewById(R.id.et_ip_hostname);
+        host.setText("www.google.com");
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        Log.d(TAG, "onPause");
+        Log.d(TAG, "onPause()");
         mPingTask.stop();
     }
 
     @Override
     public void onClick(View v) {
         if (v.getId() == R.id.button_start_ping) {
-            Log.d(TAG, "onClick");
+            Log.d(TAG, "onClick()");
 
             EditText host = (EditText) findViewById(R.id.et_ip_hostname);
 
@@ -54,6 +59,9 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
 
     class PingTask extends AsyncTask<String, Void, Void> {
+
+        public String TAG = PingTask.class.getName();
+
         PipedOutputStream mPOut;
         PipedInputStream mPIn;
         LineNumberReader mReader;
@@ -62,6 +70,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
         @Override
         protected void onPreExecute() {
+            Log.d(TAG, "onPreExecute()");
             mPOut = new PipedOutputStream();
             try {
                 mPIn = new PipedInputStream(mPOut);
@@ -75,6 +84,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
         }
 
         public void stop() {
+            Log.d(TAG, "stop");
             if (mProcess != null) {
                 mProcess.destroy();
             }
@@ -83,14 +93,26 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
         @Override
         protected Void doInBackground(String... params) {
+            Log.d(TAG, "doInBackground()");
+            String ipAddress = null;
+            try {
+                InetAddress address = InetAddress.getByName(params[0]);
+                ipAddress = address.getHostAddress();
+            } catch (UnknownHostException e) {
+                Log.e(TAG, e.toString());
+            }
+
+            if(ipAddress == null){
+                stop();
+            }
+
             try {
 
                 // get a handle to ping
                 mProcess = new ProcessBuilder()
-                        .command("/system/bin/ping", params[0])
+                        .command("ping", ipAddress)
                         .redirectErrorStream(true)
                         .start();
-
                 try {
                     InputStream in = mProcess.getInputStream();
                     OutputStream out = mProcess.getOutputStream();
@@ -118,7 +140,7 @@ public class MainActivity extends Activity implements View.OnClickListener {
 
         @Override
         protected void onProgressUpdate(Void... values) {
-
+            Log.d(TAG, "onProgressUpdate()");
             // on each read of the ping response update the textview
             try {
                 while (mReader.ready()) {
